@@ -6,6 +6,12 @@
 <title>副業まとめ帳</title>
 <meta name="description" content="いくつもの副業の売上を、1画面でまとめて記録できる無料アプリ。データは自分の端末の中だけに保存されます。">
 <meta name="theme-color" content="#1f6f5c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="副業まとめ帳">
 <style>
 :root{
   --bg:#f5f4ef; --card:#ffffff; --ink:#1d1f1e; --sub:#6b706d; --line:#e4e2da;
@@ -79,6 +85,9 @@ footer a{color:var(--accent)}
 .demo{background:var(--accent-soft);border-radius:12px;padding:8px 12px;font-size:13px;margin-bottom:12px}
 .demo a{color:var(--accent);font-weight:600}
 .demo[hidden]{display:none}
+.demo.warn{background:#fbecd6;color:#5a3a0a;line-height:1.6}
+:root[data-theme="dark"] .demo.warn{background:#3a2c14;color:#f3dcb5}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .demo.warn{background:#3a2c14;color:#f3dcb5}}
 </style>
 </head>
 <body>
@@ -91,6 +100,7 @@ footer a{color:var(--accent)}
       <button class="icon" id="next" aria-label="次の月">›</button>
     </div>
   </header>
+  <div class="demo warn" id="iosBanner" hidden><b>iPhoneの方へ：</b>Safariで開いたまま7日以上使わないと、入力したデータが消えることがあります。下の共有ボタン（□に↑）→「ホーム画面に追加」で、アプリとして使ってください。</div>
   <div class="demo" id="demoBanner" hidden>サンプル表示中（数字は架空です）　<a href="./">自分の記録をはじめる</a></div>
 
   <section class="card" aria-label="今月の合計">
@@ -125,7 +135,7 @@ footer a{color:var(--accent)}
   </section>
 
   <section class="card">
-    <p class="note">入力したデータは<b>この端末のブラウザの中だけ</b>に保存されます。サーバーには送られません。機種変更やブラウザのデータ削除に備えて、ときどきバックアップしてください。</p>
+    <p class="note">入力したデータは<b>この端末のブラウザの中だけ</b>に保存されます。サーバーには送られません。スマホとPCでデータは別々です（同期はしません）。<br>スマホではブラウザのメニューから「ホーム画面に追加」すると、アプリのように開けます。機種変更やブラウザのデータ削除に備えて、ときどきバックアップしてください。</p>
     <div class="tools">
       <button class="ghost" id="exportBtn">バックアップを保存</button>
       <button class="ghost" id="importBtn">バックアップから戻す</button>
@@ -172,6 +182,10 @@ footer a{color:var(--accent)}
   var now = new Date();
   var cur = {y: now.getFullYear(), m: now.getMonth()+1};
   if(DEMO){ var bn = document.getElementById('demoBanner'); if(bn) bn.hidden = false; }
+  // iPhone/iPadのSafariは、7日使わないサイトの保存データを消すことがある。ホーム画面に追加すれば対象外
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var standalone = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  if(isIOS && !standalone){ var ib = document.getElementById('iosBanner'); if(ib) ib.hidden = false; }
 
   function key(y,m){ return y + '-' + (m<10?'0':'') + m; }
   function shift(y,m,d){ var t = (y*12 + (m-1)) + d; return {y: Math.floor(t/12), m: t%12 + 1}; }
