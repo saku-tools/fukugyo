@@ -504,7 +504,7 @@ footer a{color:var(--accent)}
     var bx = withMarmot ? 320 : 100, bwid = W - 100 - bx, by = my + 50;
     // 「。」の後で改行し、それでも長い行だけ文字単位で折り返す
     f(34, 600); var lines = [];
-    say.replace(/。(?=.)/g, '。\n').split('\n').forEach(function(part){
+    say.replace(/([。、])(?=.)/g, '$1\n').split('\n').forEach(function(part){
       var line = '';
       Array.from(part).forEach(function(ch){ if(ctx.measureText(line + ch).width > bwid - 70){ lines.push(line); line = ch; } else line += ch; });
       lines.push(line);
@@ -563,8 +563,9 @@ footer a{color:var(--accent)}
         img.style.cssText = 'display:block;width:520px;height:auto'; document.body.appendChild(img);
       }
     };
-    if(MARMOT.complete) setTimeout(openCard, 0);
-    else { MARMOT.addEventListener('load', openCard); MARMOT.addEventListener('error', openCard); }
+    // ページ内の画像（マーモット・部屋）を全部読み終えてから作る
+    if(document.readyState === 'complete') setTimeout(openCard, 0);
+    else window.addEventListener('load', function(){ setTimeout(openCard, 0); });
   }
 
   renderAll();
