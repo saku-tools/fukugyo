@@ -101,8 +101,8 @@ footer a{color:var(--accent)}
 @media (min-width:600px){.modal{align-items:center}.sheet{border-radius:18px}}
 .check{display:flex;align-items:center;gap:8px;font-size:14px;margin:4px 0 12px}
 .check input{width:18px;height:18px;accent-color:var(--accent)}
-.rimg{background:#e9e6dd;border-radius:12px;padding:12px;text-align:center}
-.rimg img{width:100%;max-width:360px;height:auto;display:inline-block}
+.rimg{background:#f6f1e4;border-radius:12px;padding:8px;text-align:center}
+.rimg img{width:100%;max-width:460px;height:auto;display:inline-block}
 .demo.warn{background:#fbecd6;color:#5a3a0a;line-height:1.6}
 :root[data-theme="dark"] .demo.warn{background:#3a2c14;color:#f3dcb5}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .demo.warn{background:#3a2c14;color:#f3dcb5}}
@@ -131,7 +131,7 @@ footer a{color:var(--accent)}
       <div class="kpi"><div class="label">いちばん稼いだ副業</div><div class="v" id="top">―</div></div>
     </div>
     <div class="mascot"><img src="marmot.png" alt="マーモット" width="56" height="72"><p class="bubble" id="marmotSay"></p></div>
-    <button class="primary wide" id="receiptBtn">🧾 この月のレシートを作る</button>
+    <button class="primary wide" id="receiptBtn">📈 きろくカードを作る</button>
   </section>
 
   <section class="card" aria-label="副業ごとの売上">
@@ -176,11 +176,11 @@ footer a{color:var(--accent)}
 </div>
 <div class="toast" id="toast"></div>
 
-<div class="modal" id="receiptModal" hidden role="dialog" aria-modal="true" aria-label="副業レシート">
+<div class="modal" id="receiptModal" hidden role="dialog" aria-modal="true" aria-label="共有カード">
   <div class="sheet">
-    <div class="head2"><h2>副業レシート</h2><button class="ghost" id="receiptClose">閉じる</button></div>
-    <label class="check"><input type="checkbox" id="hideAmt"> 金額を隠す（割合だけ表示）</label>
-    <div class="rimg"><img id="receiptImg" alt="副業レシートの画像"></div>
+    <div class="head2"><h2 id="cardTitle">共有カード</h2><button class="ghost" id="receiptClose">閉じる</button></div>
+    <label class="check"><input type="checkbox" id="hideAmt"> 金額を隠す（グラフの形だけ出す）</label>
+    <div class="rimg"><img id="receiptImg" alt="共有カードの画像"></div>
     <div class="tools">
       <button class="primary" id="receiptShare">共有する</button>
       <button class="ghost" id="receiptSave">画像を保存</button>
@@ -211,6 +211,15 @@ footer a{color:var(--accent)}
   function demoData(){
     var d = fresh(), base = [3600,12480,8250,5400,1980,2310,760,1150], rate = [0.5,0.6,0.55,0.7,0.85,1];
     var t = new Date();
+    if(/[?&]demo=first\b/.test(location.search)){
+      // 「はじめての売上」の見本：2か月は0円、今月ブログ300円＋メルカリ480円
+      [-2, -1, 0].forEach(function(i){
+        var p = shift(t.getFullYear(), t.getMonth()+1, i), s = {};
+        s[d.jobs[0].id] = i === 0 ? 300 : 0; s[d.jobs[1].id] = i === 0 ? 480 : 0;
+        d.sales[key(p.y,p.m)] = s;
+      });
+      return d;
+    }
     rate.forEach(function(r, i){
       var p = shift(t.getFullYear(), t.getMonth()+1, i-5), s = {};
       d.jobs.forEach(function(j, k){ s[j.id] = Math.round(base[k]*r/10)*10; });
@@ -265,6 +274,9 @@ footer a{color:var(--accent)}
     else { var dd = total - monthTotal(p.y, p.m);
       say = dd > 0 ? '先月より ' + yen(dd) + ' アップ。いい調子！👍' : dd < 0 ? 'そんな月もあるよ。来月いこう。' : '先月とぴったり同じ。安定してるね。'; }
     $('marmotSay').textContent = say;
+    var msNow = milestone();
+    $('receiptBtn').textContent = msNow ? '🎉 節目カードを作る（' + msNow.title.replace(/！$/, '') + '）' : '📈 きろくカードを作る';
+    $('cardTitle').textContent = msNow ? '節目カード' : 'きろくカード';
 
     var ytd = 0; for(var m=1; m<=cur.m; m++) ytd += monthTotal(cur.y, m);
     $('ytd').textContent = yen(ytd);
@@ -376,97 +388,89 @@ footer a{color:var(--accent)}
     r.readAsText(f); e.target.value = '';
   });
 
-  // ---- 副業レシート（canvasで画像を作る。端末の外には何も送らない） ----
+  // ---- 節目カード（canvasで画像を作る。端末の外には何も送らない） ----
   var MARMOT = new Image(); MARMOT.src = 'marmot.png';
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif';
-  function receiptData(){
-    var s = state.sales[key(cur.y,cur.m)] || {};
-    var items = state.jobs.map(function(j){ return {name:j.name, v:Number(s[j.id])||0}; })
-      .filter(function(i){ return i.v > 0; }).sort(function(a,b){ return b.v - a.v; });
-    var total = items.reduce(function(t,i){ return t + i.v; }, 0);
-    var p = shift(cur.y, cur.m, -1);
-    var prev = hasData(p.y, p.m) ? monthTotal(p.y, p.m) : null;
-    return {items:items, total:total, prev:prev};
-  }
-  function fit(ctx, text, max){
-    if(ctx.measureText(text).width <= max) return text;
-    while(text.length > 1 && ctx.measureText(text + '…').width > max) text = text.slice(0,-1);
-    return text + '…';
-  }
-  function drawReceipt(hide, withMarmot){
-    var d = receiptData(), W = 720, P = 64, LH = 50;
-    withMarmot = withMarmot && MARMOT.complete && MARMOT.naturalWidth > 0;
-    function paint(ctx){
-      var y = 0, x2 = W - P;
-      function f(size, w){ ctx.font = (w||500) + ' ' + size + 'px ' + FONT; }
-      function text(t, x, align){ ctx.textAlign = align || 'left'; ctx.fillText(t, x, y); }
-      function dash(){ y += 26; ctx.save(); ctx.strokeStyle = '#8b877c'; ctx.lineWidth = 2; ctx.setLineDash([8,8]);
-        ctx.beginPath(); ctx.moveTo(P, y); ctx.lineTo(x2, y); ctx.stroke(); ctx.restore(); y += 26; }
-      ctx.fillStyle = '#2a2925'; ctx.textBaseline = 'middle';
-      y = 110; f(44, 800); text('副業まとめ帳', W/2, 'center');
-      y += 50; f(20, 600); ctx.fillStyle = '#8b877c'; text('S I D E   J O B   R E C E I P T', W/2, 'center'); ctx.fillStyle = '#2a2925';
-      dash();
-      y += 10; f(26, 600); text(cur.y + '年' + cur.m + '月分', P);
-      var t = new Date(); f(22); ctx.fillStyle = '#8b877c';
-      text('発行 ' + t.getFullYear() + '/' + (t.getMonth()+1) + '/' + t.getDate(), x2, 'right'); ctx.fillStyle = '#2a2925';
-      y += 14; dash();
-      if(!d.items.length){ y += 14; f(24); text('この月の記録はまだありません', W/2, 'center'); y += 20; }
-      d.items.forEach(function(i){
-        y += LH/2; f(26);
-        var right = hide ? Math.round(i.v / d.total * 100) + '%' : '¥' + i.v.toLocaleString('ja-JP');
-        var rw = ctx.measureText(right).width;
-        text(fit(ctx, i.name, x2 - P - rw - 30), P);
-        f(26, 600); text(right, x2, 'right');
-        y += LH/2;
-      });
-      dash();
-      y += 22; f(34, 800); text('合計', P);
-      text(hide ? '¥ ヒミツ' : '¥' + d.total.toLocaleString('ja-JP'), x2, 'right');
-      y += 54; f(24); text('先月比', P);
-      var diffT = '―';
-      if(d.prev !== null){
-        if(hide){ diffT = d.prev > 0 ? ((d.total >= d.prev ? '+' : '−') + Math.abs(Math.round((d.total - d.prev) / d.prev * 100)) + '%') : '―'; }
-        else { var df = d.total - d.prev; diffT = (df >= 0 ? '+' : '−') + '¥' + Math.abs(df).toLocaleString('ja-JP'); }
-      }
-      text(diffT, x2, 'right');
-      y += 44; text('売上があった副業', P); text(d.items.length + ' 件', x2, 'right');
-      y += 8; dash();
-      y += 16; f(22); ctx.fillStyle = '#8b877c'; text('いちばん稼いだ副業', W/2, 'center'); ctx.fillStyle = '#2a2925';
-      y += 44; f(34, 800); text(d.items.length ? fit(ctx, d.items[0].name, x2 - P) : '―', W/2, 'center');
-      y += 16; dash();
-      if(withMarmot){ var mh = 170, mw = mh * MARMOT.naturalWidth / MARMOT.naturalHeight; ctx.drawImage(MARMOT, (W - mw)/2, y + 4, mw, mh); y += mh + 20; }
-      y += 18; f(26, 600); text('今月もおつかれさまでした', W/2, 'center');
-      // バーコード風の飾り（合計から決まる並び）
-      y += 46; var seed = (d.total + cur.y * 13 + cur.m * 7) % 9973 + 1, bx = P + 40;
-      while(bx < x2 - 40){ seed = (seed * 16807) % 2147483647; var bw = 2 + seed % 5; ctx.fillRect(bx, y, bw, 70); bx += bw + 2 + (seed >> 3) % 5; }
-      y += 100; f(20); ctx.fillStyle = '#8b877c'; text('saku-tools.github.io/fukugyo', W/2, 'center');
-      y += 32; text('#副業まとめ帳', W/2, 'center');
-      return y + 70;
+  function yenLabel(n){ return n >= 10000 ? (n/10000) + '万円' : n.toLocaleString('ja-JP') + '円'; }
+  function shortYen(n){ return n >= 10000 ? (Math.round(n/1000)/10) + '万' : n.toLocaleString('ja-JP'); }
+  // この月が節目かどうか（はじめての売上／月◯円こえた／自己ベスト／記録◯か月つづいた）
+  function milestone(){
+    var tot = monthTotal(cur.y, cur.m), before = [];
+    for(var i = 1; i <= 60; i++){ var q = shift(cur.y, cur.m, -i); if(hasData(q.y, q.m)) before.push(monthTotal(q.y, q.m)); }
+    var positive = before.filter(function(v){ return v > 0; });
+    if(tot > 0 && !positive.length) return {title:'はじめての売上！', say:'最初の1円がいちばん遠いんだよ。おめでとう🎉'};
+    var TH = [1000000, 500000, 300000, 100000, 50000, 30000, 10000, 5000, 1000];
+    for(var t = 0; t < TH.length; t++){
+      if(tot >= TH[t] && before.every(function(v){ return v < TH[t]; }))
+        return {title:'月' + yenLabel(TH[t]) + ' こえた！', say:'ついに' + yenLabel(TH[t]) + '。おめでとう🎉'};
     }
-    var probe = document.createElement('canvas'); probe.width = W; probe.height = 4000;
-    var H = paint(probe.getContext('2d'));
-    var c = document.createElement('canvas'); c.width = W; c.height = H; var ctx = c.getContext('2d');
-    // 背景と、上下がギザギザの紙
-    ctx.fillStyle = '#e9e6dd'; ctx.fillRect(0, 0, W, H);
-    var top = 36, bot = H - 36, zz = 18;
-    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.12)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4; ctx.fillStyle = '#fffdf8';
-    ctx.beginPath(); ctx.moveTo(24, top);
-    for(var x = 24; x < W - 24; x += zz){ ctx.lineTo(x + zz/2, top - 10); ctx.lineTo(Math.min(x + zz, W - 24), top); }
-    ctx.lineTo(W - 24, bot);
-    for(x = W - 24; x > 24; x -= zz){ ctx.lineTo(x - zz/2, bot + 10); ctx.lineTo(Math.max(x - zz, 24), bot); }
-    ctx.closePath(); ctx.fill(); ctx.restore();
-    paint(ctx);
+    if(tot > 0 && positive.length >= 2 && tot > Math.max.apply(null, before)) return {title:'自己ベスト更新！', say:'これまででいちばんの月だね👍'};
+    var streak = 0; for(i = 0; i < 60; i++){ var s = shift(cur.y, cur.m, -i); if(hasData(s.y, s.m)) streak++; else break; }
+    if([3, 6, 12, 24, 36].indexOf(streak) >= 0) return {title:'記録 ' + streak + 'か月つづいた', say:'続けてるのがいちばんえらい👍'};
+    return null;
+  }
+  function drawCard(hide, withMarmot){
+    var W = 1080, H = 1080, ctx, c = document.createElement('canvas'); c.width = W; c.height = H; ctx = c.getContext('2d');
+    withMarmot = withMarmot && MARMOT.complete && MARMOT.naturalWidth > 0;
+    var ms = milestone(), tot = monthTotal(cur.y, cur.m);
+    function f(size, w){ ctx.font = (w||500) + ' ' + size + 'px ' + FONT; }
+    function rr(x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath(); }
+    ctx.fillStyle = '#f6f1e4'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fffdf8'; rr(40, 40, W-80, H-80, 40); ctx.fill();
+    ctx.textBaseline = 'middle';
+    // 上：アプリ名と年月
+    f(30, 700); ctx.fillStyle = '#1f6f5c'; ctx.textAlign = 'left'; ctx.fillText('副業まとめ帳', 100, 115);
+    f(30, 600); ctx.fillStyle = '#8b877c'; ctx.textAlign = 'right'; ctx.fillText(cur.y + '年' + cur.m + '月', W-100, 115);
+    // 見出し
+    var recorded = 0; for(var i = 0; i < 60; i++){ var q = shift(cur.y, cur.m, -i); if(hasData(q.y, q.m)) recorded = i + 1; }
+    ctx.textAlign = 'left'; ctx.fillStyle = '#2a2925';
+    var title = ms ? ms.title : cur.m + '月の副業きろく';
+    f(96, 800); while(ctx.measureText(title).width > W-200){ var sz = parseInt(ctx.font) - 4; f(sz, 800); }
+    ctx.fillText(title, 100, 235);
+    f(34, 600); ctx.fillStyle = '#6b706d';
+    var sub = '副業の記録 ' + Math.max(recorded, 1) + 'か月目';
+    if(!hide && tot > 0) sub += '　今月 ¥' + tot.toLocaleString('ja-JP');
+    ctx.fillText(sub, 100, 330);
+    // グラフ：記録がある最初の月から今月まで（最大12か月）
+    var months = [];
+    for(i = 11; i >= 0; i--){ var m = shift(cur.y, cur.m, -i); m.v = monthTotal(m.y, m.m); m.has = hasData(m.y, m.m); months.push(m); }
+    while(months.length > 1 && !months[0].has) months.shift();
+    var gx = 100, gw = W-200, gy = 410, gh = 300, max = Math.max.apply(null, months.map(function(m){ return m.v; })) || 1;
+    var slot = gw / months.length, bw = Math.min(70, slot * 0.6);
+    months.forEach(function(m, k){
+      var h = Math.max(6, m.v / max * (gh - 50)), x = gx + slot*k + (slot - bw)/2, isCur = k === months.length - 1;
+      ctx.fillStyle = isCur ? '#1f6f5c' : '#c9dfd6'; rr(x, gy + gh - h, bw, h, 10); ctx.fill();
+      ctx.textAlign = 'center'; f(24, isCur ? 700 : 500); ctx.fillStyle = isCur ? '#2a2925' : '#8b877c';
+      ctx.fillText(m.m + '月', x + bw/2, gy + gh + 30);
+      if(!hide && m.v > 0){ f(22, isCur ? 700 : 500); ctx.fillText(shortYen(m.v), x + bw/2, gy + gh - h - 20); }
+    });
+    // マーモットとひとこと
+    var say = ms ? ms.say : $('marmotSay').textContent;
+    var my = 760, mh = 240;
+    if(withMarmot){ var mw = mh * MARMOT.naturalWidth / MARMOT.naturalHeight; ctx.drawImage(MARMOT, 100, my, mw, mh); }
+    var bx = withMarmot ? 320 : 100, bwid = W - 100 - bx, by = my + 50;
+    f(34, 600); var lines = [], line = '';
+    Array.from(say).forEach(function(ch){ if(ctx.measureText(line + ch).width > bwid - 70){ lines.push(line); line = ch; } else line += ch; });
+    lines.push(line); lines = lines.slice(0, 3);
+    var bh = 50 + lines.length * 48;
+    ctx.fillStyle = '#e3efe9'; rr(bx, by, bwid, bh, 30); ctx.fill();
+    if(withMarmot){ ctx.beginPath(); ctx.moveTo(bx, by + bh/2 - 16); ctx.lineTo(bx - 22, by + bh/2 + 6); ctx.lineTo(bx, by + bh/2 + 16); ctx.fill(); }
+    ctx.fillStyle = '#2a2925'; ctx.textAlign = 'left';
+    lines.forEach(function(l, k){ ctx.fillText(l, bx + 35, by + 49 + k*48); });
+    // 下：タグとURL
+    f(26, 600); ctx.fillStyle = '#8b877c'; ctx.textAlign = 'right';
+    ctx.fillText('#副業まとめ帳　saku-tools.github.io/fukugyo', W-100, H-95);
     return c;
   }
   var receiptCanvas = null;
   function updateReceipt(){
     var hide = $('hideAmt').checked;
-    receiptCanvas = drawReceipt(hide, true);
+    receiptCanvas = drawCard(hide, true);
     // 画像を file:// で開いたときなど、マーモットを描くと書き出せない環境ではマーモットなしで作り直す
     try{ $('receiptImg').src = receiptCanvas.toDataURL('image/png'); }
-    catch(e){ receiptCanvas = drawReceipt(hide, false); $('receiptImg').src = receiptCanvas.toDataURL('image/png'); }
+    catch(e){ receiptCanvas = drawCard(hide, false); $('receiptImg').src = receiptCanvas.toDataURL('image/png'); }
   }
-  function receiptName(){ return 'fukugyo-receipt-' + key(cur.y, cur.m) + '.png'; }
+  function receiptName(){ return 'fukugyo-' + key(cur.y, cur.m) + '.png'; }
   $('receiptBtn').addEventListener('click', function(){
     $('receiptModal').hidden = false;
     if(MARMOT.complete) updateReceipt(); else { MARMOT.onload = MARMOT.onerror = updateReceipt; }
@@ -484,7 +488,8 @@ footer a{color:var(--accent)}
   $('receiptShare').addEventListener('click', function(){
     receiptCanvas.toBlob(function(b){
       var file = new File([b], receiptName(), {type:'image/png'});
-      var data = {files:[file], text:cur.m + '月の副業レシート #副業まとめ帳'};
+      var ms = milestone();
+      var data = {files:[file], text:(ms ? ms.title.replace(/！$/, '') + '！' : cur.m + '月の副業きろく') + ' #副業まとめ帳'};
       if(navigator.canShare && navigator.canShare(data)){ navigator.share(data).catch(function(){}); }
       else { $('receiptSave').click(); toast('この端末では共有できないので、画像を保存しました'); }
     }, 'image/png');
@@ -495,7 +500,7 @@ footer a{color:var(--accent)}
     setTimeout(function(){
       $('receiptBtn').click();
       if(/[?&]raw\b/.test(location.search)){
-        var img = $('receiptImg'); document.body.innerHTML = ''; document.body.style.background = '#e9e6dd';
+        var img = $('receiptImg'); document.body.innerHTML = ''; document.body.style.background = '#f6f1e4';
         img.style.cssText = 'display:block;width:520px;height:auto'; document.body.appendChild(img);
       }
     }, 0);
