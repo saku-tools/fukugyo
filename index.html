@@ -130,7 +130,7 @@ footer a{color:var(--accent)}
       <div class="kpi"><div class="label">今年の合計</div><div class="v" id="ytd">¥0</div></div>
       <div class="kpi"><div class="label">いちばん稼いだ副業</div><div class="v" id="top">―</div></div>
     </div>
-    <div class="mascot"><img src="marmot.png" alt="サングラスのマーモット" width="56" height="72"><p class="bubble" id="marmotSay"></p></div>
+    <div class="mascot"><img src="marmot.png" alt="マーモット" width="56" height="72"><p class="bubble" id="marmotSay"></p></div>
     <button class="primary wide" id="receiptBtn">🧾 この月のレシートを作る</button>
   </section>
 
@@ -260,10 +260,10 @@ footer a{color:var(--accent)}
     } else { d.className = 'diff flat'; d.textContent = '先月の記録なし'; }
 
     var say;
-    if(total === 0) say = 'この月の売上、入れてみようぜ。';
-    else if(!hasData(p.y, p.m)) say = '記録スタートだな。来月、先月とくらべられるぜ👍';
+    if(total === 0) say = 'この月の売上、入れてみよう。';
+    else if(!hasData(p.y, p.m)) say = '記録スタートだね。来月は先月とくらべられるよ👍';
     else { var dd = total - monthTotal(p.y, p.m);
-      say = dd > 0 ? '先月より ' + yen(dd) + ' アップ。いい調子だぜ👍' : dd < 0 ? 'そんな月もある。来月いこうぜ。' : '先月とぴったり同じ。安定してるな。'; }
+      say = dd > 0 ? '先月より ' + yen(dd) + ' アップ。いい調子！👍' : dd < 0 ? 'そんな月もあるよ。来月いこう。' : '先月とぴったり同じ。安定してるね。'; }
     $('marmotSay').textContent = say;
 
     var ytd = 0; for(var m=1; m<=cur.m; m++) ytd += monthTotal(cur.y, m);
