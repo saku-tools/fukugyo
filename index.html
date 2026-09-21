@@ -86,6 +86,12 @@ footer a{color:var(--accent)}
 .demo a{color:var(--accent);font-weight:600}
 .demo[hidden]{display:none}
 .wide{width:100%;margin-top:14px}
+.brand{display:flex;align-items:center;gap:8px}
+.brand img{border-radius:50%;background:#fff;border:1px solid var(--line)}
+.mascot{display:flex;align-items:flex-end;gap:10px;margin-top:14px}
+.mascot img{flex:none;width:56px;height:auto}
+.bubble{position:relative;margin:0 0 10px;background:var(--accent-soft);border-radius:14px;padding:9px 12px;font-size:14px;line-height:1.5}
+.bubble::before{content:"";position:absolute;left:-7px;bottom:12px;border:7px solid transparent;border-right-color:var(--accent-soft);border-left:0}
 .more{margin-top:6px;font-size:13px;color:var(--sub)}
 .more summary{cursor:pointer;color:var(--accent);padding:4px 0}
 .more ul{margin:6px 0 0;padding-left:1.2em;line-height:1.7}
@@ -105,7 +111,7 @@ footer a{color:var(--accent)}
 <body>
 <div class="wrap">
   <header>
-    <h1>副業まとめ帳</h1>
+    <h1 class="brand"><img src="icon-512.png" alt="" width="32" height="32">副業まとめ帳</h1>
     <div class="month">
       <button class="icon" id="prev" aria-label="前の月">‹</button>
       <b id="monthLabel"></b>
@@ -124,6 +130,7 @@ footer a{color:var(--accent)}
       <div class="kpi"><div class="label">今年の合計</div><div class="v" id="ytd">¥0</div></div>
       <div class="kpi"><div class="label">いちばん稼いだ副業</div><div class="v" id="top">―</div></div>
     </div>
+    <div class="mascot"><img src="marmot.png" alt="サングラスのマーモット" width="56" height="72"><p class="bubble" id="marmotSay"></p></div>
     <button class="primary wide" id="receiptBtn">🧾 この月のレシートを作る</button>
   </section>
 
@@ -252,6 +259,13 @@ footer a{color:var(--accent)}
       d.textContent = '先月より ' + (diff>0?'+':diff<0?'−':'±') + yen(Math.abs(diff)).slice(1).replace(/^/, '¥');
     } else { d.className = 'diff flat'; d.textContent = '先月の記録なし'; }
 
+    var say;
+    if(total === 0) say = 'この月の売上、入れてみようぜ。';
+    else if(!hasData(p.y, p.m)) say = '記録スタートだな。来月、先月とくらべられるぜ👍';
+    else { var dd = total - monthTotal(p.y, p.m);
+      say = dd > 0 ? '先月より ' + yen(dd) + ' アップ。いい調子だぜ👍' : dd < 0 ? 'そんな月もある。来月いこうぜ。' : '先月とぴったり同じ。安定してるな。'; }
+    $('marmotSay').textContent = say;
+
     var ytd = 0; for(var m=1; m<=cur.m; m++) ytd += monthTotal(cur.y, m);
     $('ytd').textContent = yen(ytd);
 
@@ -363,6 +377,7 @@ footer a{color:var(--accent)}
   });
 
   // ---- 副業レシート（canvasで画像を作る。端末の外には何も送らない） ----
+  var MARMOT = new Image(); MARMOT.src = 'marmot.png';
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif';
   function receiptData(){
     var s = state.sales[key(cur.y,cur.m)] || {};
@@ -378,8 +393,9 @@ footer a{color:var(--accent)}
     while(text.length > 1 && ctx.measureText(text + '…').width > max) text = text.slice(0,-1);
     return text + '…';
   }
-  function drawReceipt(hide){
+  function drawReceipt(hide, withMarmot){
     var d = receiptData(), W = 720, P = 64, LH = 50;
+    withMarmot = withMarmot && MARMOT.complete && MARMOT.naturalWidth > 0;
     function paint(ctx){
       var y = 0, x2 = W - P;
       function f(size, w){ ctx.font = (w||500) + ' ' + size + 'px ' + FONT; }
@@ -418,6 +434,7 @@ footer a{color:var(--accent)}
       y += 16; f(22); ctx.fillStyle = '#8b877c'; text('いちばん稼いだ副業', W/2, 'center'); ctx.fillStyle = '#2a2925';
       y += 44; f(34, 800); text(d.items.length ? fit(ctx, d.items[0].name, x2 - P) : '―', W/2, 'center');
       y += 16; dash();
+      if(withMarmot){ var mh = 170, mw = mh * MARMOT.naturalWidth / MARMOT.naturalHeight; ctx.drawImage(MARMOT, (W - mw)/2, y + 4, mw, mh); y += mh + 20; }
       y += 18; f(26, 600); text('今月もおつかれさまでした', W/2, 'center');
       // バーコード風の飾り（合計から決まる並び）
       y += 46; var seed = (d.total + cur.y * 13 + cur.m * 7) % 9973 + 1, bx = P + 40;
@@ -442,9 +459,18 @@ footer a{color:var(--accent)}
     return c;
   }
   var receiptCanvas = null;
-  function updateReceipt(){ receiptCanvas = drawReceipt($('hideAmt').checked); $('receiptImg').src = receiptCanvas.toDataURL('image/png'); }
+  function updateReceipt(){
+    var hide = $('hideAmt').checked;
+    receiptCanvas = drawReceipt(hide, true);
+    // 画像を file:// で開いたときなど、マーモットを描くと書き出せない環境ではマーモットなしで作り直す
+    try{ $('receiptImg').src = receiptCanvas.toDataURL('image/png'); }
+    catch(e){ receiptCanvas = drawReceipt(hide, false); $('receiptImg').src = receiptCanvas.toDataURL('image/png'); }
+  }
   function receiptName(){ return 'fukugyo-receipt-' + key(cur.y, cur.m) + '.png'; }
-  $('receiptBtn').addEventListener('click', function(){ $('receiptModal').hidden = false; updateReceipt(); });
+  $('receiptBtn').addEventListener('click', function(){
+    $('receiptModal').hidden = false;
+    if(MARMOT.complete) updateReceipt(); else { MARMOT.onload = MARMOT.onerror = updateReceipt; }
+  });
   $('receiptClose').addEventListener('click', function(){ $('receiptModal').hidden = true; });
   $('receiptModal').addEventListener('click', function(e){ if(e.target === $('receiptModal')) $('receiptModal').hidden = true; });
   $('hideAmt').addEventListener('change', updateReceipt);
