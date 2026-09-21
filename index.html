@@ -86,6 +86,11 @@ footer a{color:var(--accent)}
 .demo a{color:var(--accent);font-weight:600}
 .demo[hidden]{display:none}
 .wide{width:100%;margin-top:14px}
+.room{display:block;width:100%;height:auto;border-radius:12px;margin-top:6px;transition:filter .3s}
+.room.locked{filter:grayscale(1) opacity(.45)}
+.steps{display:flex;gap:6px;margin:12px 0 8px}
+.steps span{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.steps span.on{background:var(--accent)}
 .brand{display:flex;align-items:center;gap:8px}
 .brand img{border-radius:50%;background:#fff;border:1px solid var(--line)}
 .mascot{display:flex;align-items:flex-end;gap:10px;margin-top:14px}
@@ -132,6 +137,13 @@ footer a{color:var(--accent)}
     </div>
     <div class="mascot"><img src="marmot.png" alt="マーモット" width="56" height="72"><p class="bubble" id="marmotSay"></p></div>
     <button class="primary wide" id="receiptBtn">📈 きろくカードを作る</button>
+  </section>
+
+  <section class="card" aria-label="マーモットの部屋">
+    <div class="head2"><h2>マーモットの部屋</h2><span class="label" id="roomLv"></span></div>
+    <img id="roomImg" class="room" src="room1.jpg" alt="マーモットの部屋" width="900" height="672">
+    <div class="steps" id="roomSteps" aria-hidden="true"></div>
+    <p class="note" id="roomNext"></p>
   </section>
 
   <section class="card" aria-label="副業ごとの売上">
@@ -274,6 +286,7 @@ footer a{color:var(--accent)}
     else { var dd = total - monthTotal(p.y, p.m);
       say = dd > 0 ? '先月より ' + yen(dd) + ' アップ。いい調子！👍' : dd < 0 ? 'そんな月もあるよ。来月いこう。' : '先月とぴったり同じ。安定してるね。'; }
     $('marmotSay').textContent = say;
+    renderRoom();
     var msNow = milestone();
     $('receiptBtn').textContent = msNow ? '🎉 節目カードを作る（' + msNow.title.replace(/！$/, '') + '）' : '📈 きろくカードを作る';
     $('cardTitle').textContent = msNow ? '節目カード' : 'きろくカード';
@@ -388,6 +401,34 @@ footer a{color:var(--accent)}
     r.readAsText(f); e.target.value = '';
   });
 
+  // ---- マーモットの部屋：記録した月の数で育つ（売上の額では育たない） ----
+  var ROOM = [
+    {need:1,  item:'クッション'},
+    {need:2,  item:'机とパソコン'},
+    {need:4,  item:'本棚と植物'},
+    {need:6,  item:'ソファとランプ'},
+    {need:12, item:'ライトとトロフィー'}
+  ];
+  function recordedCount(){
+    var upto = key(cur.y, cur.m);
+    return Object.keys(state.sales).filter(function(k){
+      var s = state.sales[k];
+      return k <= upto && state.jobs.some(function(j){ return s[j.id] !== undefined && s[j.id] !== ''; });
+    }).length;
+  }
+  function roomStage(n){ var st = -1; ROOM.forEach(function(r, i){ if(n >= r.need) st = i; }); return st; }
+  function renderRoom(){
+    var n = recordedCount(), st = roomStage(n), img = $('roomImg');
+    img.src = 'room' + (Math.max(st, 0) + 1) + '.jpg';
+    img.classList.toggle('locked', st < 0);
+    $('roomLv').textContent = st < 0 ? 'まだ部屋はありません' : 'レベル ' + (st + 1) + '／' + ROOM.length + '（記録 ' + n + 'か月）';
+    $('roomSteps').innerHTML = ROOM.map(function(r, i){ return '<span class="' + (i <= st ? 'on' : '') + '"></span>'; }).join('');
+    var nx = ROOM[st + 1];
+    $('roomNext').textContent = st < 0 ? '売上を1か月ぶん入れると、マーモットの部屋ができるよ。'
+      : nx ? 'あと ' + (nx.need - n) + 'か月 記録すると「' + nx.item + '」が増えるよ。売上が0円の月も、入れれば1か月に数えるよ。'
+      : '部屋が完成！ ここまで続けたのがいちばんえらい。';
+  }
+
   // ---- 節目カード（canvasで画像を作る。端末の外には何も送らない） ----
   var MARMOT = new Image(); MARMOT.src = 'marmot.png';
   var FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif';
@@ -399,6 +440,8 @@ footer a{color:var(--accent)}
     for(var i = 1; i <= 60; i++){ var q = shift(cur.y, cur.m, -i); if(hasData(q.y, q.m)) before.push(monthTotal(q.y, q.m)); }
     var positive = before.filter(function(v){ return v > 0; });
     if(tot > 0 && !positive.length) return {title:'はじめての売上！', say:'最初の1円がいちばん遠いんだよ。おめでとう🎉'};
+    var n = recordedCount(), st = roomStage(n);
+    if(st > 0 && ROOM[st].need === n) return {title:'部屋に' + ROOM[st].item + '！', say:'記録' + n + 'か月で、部屋に' + ROOM[st].item + 'が増えたよ🎉', room:st};
     var TH = [1000000, 500000, 300000, 100000, 50000, 30000, 10000, 5000, 1000];
     for(var t = 0; t < TH.length; t++){
       if(tot >= TH[t] && before.every(function(v){ return v < TH[t]; }))
@@ -411,6 +454,7 @@ footer a{color:var(--accent)}
   }
   function drawCard(hide, withMarmot){
     var W = 1080, H = 1080, ctx, c = document.createElement('canvas'); c.width = W; c.height = H; ctx = c.getContext('2d');
+    var allowImg = withMarmot;  // false のときは画像を一切描かない（file:// などで書き出せないとき用）
     withMarmot = withMarmot && MARMOT.complete && MARMOT.naturalWidth > 0;
     var ms = milestone(), tot = monthTotal(cur.y, cur.m);
     function f(size, w){ ctx.font = (w||500) + ' ' + size + 'px ' + FONT; }
@@ -431,6 +475,13 @@ footer a{color:var(--accent)}
     var sub = '副業の記録 ' + Math.max(recorded, 1) + 'か月目';
     if(!hide && tot > 0) sub += '　今月 ¥' + tot.toLocaleString('ja-JP');
     ctx.fillText(sub, 100, 330);
+    // 部屋が育った月は、グラフの代わりに部屋の絵を出す
+    var roomEl = $('roomImg');
+    if(allowImg && ms && ms.room !== undefined && roomEl && roomEl.complete && roomEl.naturalWidth){
+      var rh = 350, rw = rh * roomEl.naturalWidth / roomEl.naturalHeight;
+      ctx.save(); rr((W - rw)/2, 385, rw, rh, 24); ctx.clip(); ctx.drawImage(roomEl, (W - rw)/2, 385, rw, rh); ctx.restore();
+    } else drawBars();
+    function drawBars(){
     // グラフ：記録がある最初の月から今月まで（最大12か月）
     var months = [];
     for(i = 11; i >= 0; i--){ var m = shift(cur.y, cur.m, -i); m.v = monthTotal(m.y, m.m); m.has = hasData(m.y, m.m); months.push(m); }
@@ -445,6 +496,7 @@ footer a{color:var(--accent)}
       ctx.fillText(m.m + '月', x + bw/2, gy + gh + 30);
       if(!hide && m.v > 0){ f(22, isCur ? 700 : 500); ctx.fillText(shortYen(m.v), x + bw/2, gy + gh - h - 20); }
     });
+    }
     // マーモットとひとこと
     var say = ms ? ms.say : $('marmotSay').textContent;
     var my = 760, mh = 240;
