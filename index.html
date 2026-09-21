@@ -438,8 +438,9 @@ footer a{color:var(--accent)}
     var gx = 100, gw = W-200, gy = 410, gh = 300, max = Math.max.apply(null, months.map(function(m){ return m.v; })) || 1;
     var slot = gw / months.length, bw = Math.min(70, slot * 0.6);
     months.forEach(function(m, k){
-      var h = Math.max(6, m.v / max * (gh - 50)), x = gx + slot*k + (slot - bw)/2, isCur = k === months.length - 1;
-      ctx.fillStyle = isCur ? '#1f6f5c' : '#c9dfd6'; rr(x, gy + gh - h, bw, h, 10); ctx.fill();
+      var h = m.v > 0 ? Math.max(24, m.v / max * (gh - 50)) : 4, x = gx + slot*k + (slot - bw)/2, isCur = k === months.length - 1;
+      ctx.fillStyle = isCur ? '#1f6f5c' : '#c9dfd6';
+      if(m.v > 0){ rr(x, gy + gh - h, bw, h, 10); ctx.fill(); } else ctx.fillRect(x, gy + gh - h, bw, h);
       ctx.textAlign = 'center'; f(24, isCur ? 700 : 500); ctx.fillStyle = isCur ? '#2a2925' : '#8b877c';
       ctx.fillText(m.m + '月', x + bw/2, gy + gh + 30);
       if(!hide && m.v > 0){ f(22, isCur ? 700 : 500); ctx.fillText(shortYen(m.v), x + bw/2, gy + gh - h - 20); }
@@ -449,9 +450,14 @@ footer a{color:var(--accent)}
     var my = 760, mh = 240;
     if(withMarmot){ var mw = mh * MARMOT.naturalWidth / MARMOT.naturalHeight; ctx.drawImage(MARMOT, 100, my, mw, mh); }
     var bx = withMarmot ? 320 : 100, bwid = W - 100 - bx, by = my + 50;
-    f(34, 600); var lines = [], line = '';
-    Array.from(say).forEach(function(ch){ if(ctx.measureText(line + ch).width > bwid - 70){ lines.push(line); line = ch; } else line += ch; });
-    lines.push(line); lines = lines.slice(0, 3);
+    // 「。」の後で改行し、それでも長い行だけ文字単位で折り返す
+    f(34, 600); var lines = [];
+    say.replace(/。(?=.)/g, '。\n').split('\n').forEach(function(part){
+      var line = '';
+      Array.from(part).forEach(function(ch){ if(ctx.measureText(line + ch).width > bwid - 70){ lines.push(line); line = ch; } else line += ch; });
+      lines.push(line);
+    });
+    lines = lines.slice(0, 3);
     var bh = 50 + lines.length * 48;
     ctx.fillStyle = '#e3efe9'; rr(bx, by, bwid, bh, 30); ctx.fill();
     if(withMarmot){ ctx.beginPath(); ctx.moveTo(bx, by + bh/2 - 16); ctx.lineTo(bx - 22, by + bh/2 + 6); ctx.lineTo(bx, by + bh/2 + 16); ctx.fill(); }
