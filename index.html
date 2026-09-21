@@ -503,13 +503,16 @@ footer a{color:var(--accent)}
   // ?receipt で開くとレシートを表示（&hide で金額を隠す）。宣伝用の撮影に使う
   if(/[?&]receipt\b/.test(location.search)){
     $('hideAmt').checked = /[?&]hide\b/.test(location.search);
-    setTimeout(function(){
+    // マーモットの画像を読み終えてから作る（先に画面を消すと、後から作り直すときに部品が無くて失敗するため）
+    var openCard = function(){
       $('receiptBtn').click();
       if(/[?&]raw\b/.test(location.search)){
         var img = $('receiptImg'); document.body.innerHTML = ''; document.body.style.background = '#f6f1e4';
         img.style.cssText = 'display:block;width:520px;height:auto'; document.body.appendChild(img);
       }
-    }, 0);
+    };
+    if(MARMOT.complete) setTimeout(openCard, 0);
+    else { MARMOT.addEventListener('load', openCard); MARMOT.addEventListener('error', openCard); }
   }
 
   renderAll();
