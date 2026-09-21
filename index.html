@@ -469,7 +469,7 @@ footer a{color:var(--accent)}
     var recorded = 0; for(var i = 0; i < 60; i++){ var q = shift(cur.y, cur.m, -i); if(hasData(q.y, q.m)) recorded = i + 1; }
     ctx.textAlign = 'left'; ctx.fillStyle = '#2a2925';
     var title = ms ? ms.title : cur.m + '月の副業きろく';
-    f(96, 800); while(ctx.measureText(title).width > W-200){ var sz = parseInt(ctx.font) - 4; f(sz, 800); }
+    var tsz = 96; f(tsz, 800); while(tsz > 40 && ctx.measureText(title).width > W-200){ tsz -= 4; f(tsz, 800); }
     ctx.fillText(title, 100, 235);
     f(34, 600); ctx.fillStyle = '#6b706d';
     var sub = '副業の記録 ' + Math.max(recorded, 1) + 'か月目';
