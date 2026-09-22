@@ -175,6 +175,7 @@ footer a{color:var(--accent)}
         <li>別の端末に移すときは、「バックアップを保存」で出したファイルを、移した先で「バックアップから戻す」で読み込みます。</li>
         <li>スマホではブラウザのメニューから「ホーム画面に追加」すると、アプリのように開けます。</li>
         <li>機種変更やブラウザのデータ削除に備えて、ときどきバックアップしてください。</li>
+        <li>このページが開かれた回数だけを数えています（GoatCounter。Cookieは使わず、入力した数字は送りません）。</li>
       </ul>
     </details>
     <div class="tools">
@@ -245,6 +246,14 @@ footer a{color:var(--accent)}
   var now = new Date();
   var cur = {y: now.getFullYear(), m: now.getMonth()+1};
   if(DEMO){ var bn = document.getElementById('demoBanner'); if(bn) bn.hidden = false; }
+  // 開いた回数だけ数える（GoatCounter。Cookieなし・入力した数字は送らない）。見本表示（?demo）は数えない
+  var GC_CODE = 'fukugyo';
+  if(!DEMO && /github\.io$/.test(location.hostname)){
+    var gc = document.createElement('script');
+    gc.async = true; gc.src = 'https://gc.zgo.at/count.js';
+    gc.setAttribute('data-goatcounter', 'https://' + GC_CODE + '.goatcounter.com/count');
+    document.head.appendChild(gc);
+  }
   // iPhone/iPadのSafariは、7日使わないサイトの保存データを消すことがある。ホーム画面に追加すれば対象外
   var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var standalone = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
